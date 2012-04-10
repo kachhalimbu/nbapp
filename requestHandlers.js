@@ -1,6 +1,8 @@
 var querystring = require("querystring"),
 	fs = require("fs"),
-	formidable = require("formidable");
+	formidable = require("formidable"),
+	im = require("imagemagick"),
+	util = require("util");
 
 function start(response) {
 	console.log("Request handler 'start' was called !!!");
@@ -33,31 +35,45 @@ function upload(response, request) {
 	form.parse(request, function(error, fields, files) {
 		console.log(files.upload.path);
 
-		fs.rename(files.upload.path, curDir + "/tmp/test.png", function(err) {
+		fs.rename(files.upload.path, curDir + "/tmp/test.jpg", function(err) {
 			if(err) {
-				fs.unlink(curDir + "/tmp/test.png");
-				fs.rename(files.upload.path, curDir + "/tmp/test.png");
+				fs.unlink(curDir + "/tmp/test.jpg");
+				fs.rename(files.upload.path, curDir + "/tmp/test.jpg");
 			}
 		});
 
 	});
 	response.writeHead(200, {"Content-Type":"text/html"});
 	response.write("Received image:<br/>");
+	fs.stat(__dirname + '/tmp/test.jpg', function(err, stats) {
+		if(err) throw err
+		console.log(util.inspect(stats));
+		response.write("File size:" + stats.size);
+	});
+	im.readMetadata(__dirname + '/tmp/test.jpg', function(err, metadata) {
+		if(err) throw err
+		// console.log(metadata);
+		response.write("<br/>Created on:" + metadata.exif.dateTimeOriginal);
+		response.write("<br/>Camera model:" + metadata.exif.model);
+		response.write('<p/> Done');
+		response.end();
+	});
 	response.write("<img src='/show' />");
-	response.end();
+	response.write("<p/> ");
+
 }
 
 
 function show(response, request) {
 	console.log("Request handler 'show' was called.");
 
-	fs.readFile( __dirname + "/tmp/test.png", "binary", function(error, file) {
+	fs.readFile( __dirname + "/tmp/test.jpg", "binary", function(error, file) {
 		if(error) {
 			response.writeHead(500, {"Content-Type" : "text/plain"});
 			response.write(error + "\n");
 			response.end();
 		} else {
-			response.writeHead(200, {"Content-Type" : "image/png"});
+			response.writeHead(200, {"Content-Type" : "image/jpg"});
 			response.write(file, "binary");
 			response.end();
 		}
